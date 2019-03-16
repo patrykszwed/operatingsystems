@@ -4,36 +4,135 @@ public class Main {
 
     private static List<Process> processorsList = new LinkedList<>();
 
-    public static void init(List<Process> processList, int noProcesses) {
+    public static void init(List<Process> processList, int noProcesses, int timeUnit, int quantum) {
         Random rand = new Random();
         Process process;
         for (int i = 0; i < noProcesses; ++i) {
-            process = new Process(rand.nextInt(noProcesses) + 1, rand.nextInt(3) + 1);
+            process = new Process(rand.nextInt(noProcesses) + 1, rand.nextInt(quantum + 1) + 10, i);
             processList.add(process);
         }
     }
 
     public static void main(String[] args) {
-        int noProcesses;
+        int noProcesses, timeUnit, quantum;
         Scanner sc = new Scanner(System.in);
         System.out.println("How many processes do you want to simulate?");
         noProcesses = sc.nextInt();
-        init(processorsList, noProcesses);
+        System.out.println("How much is one time unit?");
+        timeUnit = sc.nextInt();
+        System.out.println("What value of quantum do you want to use?");
+        quantum = sc.nextInt();
+        init(processorsList, noProcesses, timeUnit, quantum);
 
-        fcfs(processorsList, noProcesses);
-        sjf(processorsList, noProcesses);
-        sjfp(processorsList, noProcesses);
-//        rrob(processorsList, noProcesses);
+        fcfs(processorsList);
+        sjf(processorsList);
+        sjfp(processorsList);
+        rrob(processorsList, quantum);
 
         sc.close();
     }
 
-    public static float findAvgWaitingTime(Queue<Process> processQueue, int noProcesses){
+    public static void fcfs(List<Process> processList) {
+        Queue<Process> processQueue = new LinkedList<>(processList);
+
+        System.out.println("[FCFS] Average waiting time = " + findAvgWaitingTime(processQueue) + " time units.");
+    }
+
+    public static void sjf(List<Process> processList) {
+        Collections.sort(processList);
+        Queue<Process> processQueue = new LinkedList<>(processList);
+
+        System.out.println("[SJF] Average waiting time = " + findAvgWaitingTime(processQueue) + " time units.");
+    }
+
+    public static void sjfp(List<Process> processList) {
+        List<Process> copyList = new ArrayList<>(processList);
+        int initialSize = copyList.size();
+        Map<Integer, Integer> initialServiceTimeMap = getInitialMap(copyList);
+        Collections.sort(copyList);
+
+        int time = 0, awaitingUnits = 0, waitTime = 0;
+        Process currentProcess, headProcess;
+
+        while (!copyList.isEmpty()) {
+            currentProcess = copyList.get(0);
+            copyList.remove(0);
+
+            while (currentProcess.getServiceTime() > 0) {
+                currentProcess.setServiceTime(currentProcess.getServiceTime() - 1);
+                headProcess = null;
+                time++;
+
+                if (copyList.size() != 0)
+                    headProcess = copyList.get(0);
+
+                if (headProcess != null) {
+                    if (headProcess.getServiceTime() < currentProcess.getServiceTime() && headProcess.getArrivalTime() >= time) {
+                        copyList.add(currentProcess);
+                        break;
+                    }
+                } else
+                    break;
+            }
+
+            if (currentProcess.getServiceTime() == 0) {   // process is completed
+                waitTime = time + 1 - currentProcess.getArrivalTime() - initialServiceTimeMap.get(currentProcess.getProcessId());
+                awaitingUnits += waitTime;
+            }
+            Collections.sort(copyList);
+        }
+        processList.forEach(elem -> {
+            elem.setServiceTime(initialServiceTimeMap.get(elem.getProcessId()));
+        });
+        System.out.println("[SJFP] Average waiting time = " + (float) (awaitingUnits / initialSize) + " time units.");
+    }
+
+    public static void rrob(List<Process> processList, int quantum) {
+        int initialSize = processList.size();
+        Map<Integer, Integer> initialServiceTimeMap = getInitialMap(processList);
+
+        int time = 0, awaitingUnits = 0, waitTime;
+        Process currentProcess;
+
+        while (!processList.isEmpty()) {    // while process is done
+            currentProcess = processList.get(0);
+            processList.remove(0);
+
+            while (currentProcess.getServiceTime() > quantum) {
+                currentProcess.setServiceTime(currentProcess.getServiceTime() - quantum);
+                time += quantum;
+            }
+            time += currentProcess.getServiceTime();
+            waitTime = time - initialServiceTimeMap.get(currentProcess.getProcessId());
+            awaitingUnits += waitTime;
+        }
+        System.out.println("[RROB] Average waiting time = " + (float) (awaitingUnits / initialSize) + " time units.");
+    }
+
+    private static Map<Integer, Integer> getInitialMap(List<Process> processList) {
+        Map<Integer, Integer> initialServiceTimeMap = new HashMap<>();
+        processList.forEach(elem -> {
+            initialServiceTimeMap.put(elem.getProcessId(), elem.getServiceTime());
+        });
+        return initialServiceTimeMap;
+    }
+
+    private static void printProcesses(List<Process> processList) {
+        processList.forEach(elem -> {
+            System.out.println("==== Process with ID [" + elem.getProcessId() + "] ====");
+            System.out.println("\t\tArrival time = " + elem.getArrivalTime());
+            System.out.println("\t\tService time = " + elem.getServiceTime());
+        });
+    }
+
+
+    public static float findAvgWaitingTime(Queue<Process> processQueue) {
+        int noProcesses = processQueue.size();
         int[] wt = new int[noProcesses];
         wt[0] = 0;
         float sum = 0;
 
-        for(int i = 1; i < noProcesses; ++i){
+        for (int i = 1; i < noProcesses; ++i) {
             wt[i] = processQueue.remove().getServiceTime() + wt[i - 1];
             sum += wt[i];
         }
@@ -41,185 +140,4 @@ public class Main {
         return sum / noProcesses;
     }
 
-    public static void fcfs(List<Process> processList, int noProcesses) {
-        Queue<Process> processQueue = new LinkedList<>();
-        for (int i = 0; i < noProcesses; i++) {
-            processQueue.add(processList.get(i));
-        }
-
-        System.out.println("[FCFS] Average awaiting time = " + findAvgWaitingTime(processQueue, noProcesses));
-    }
-
-    public static void sjf(List<Process> processList, int noProcesses) {
-        Queue<Process> processQueue = new PriorityQueue<>();
-        for (int i = 0; i < noProcesses; i++) {
-            processQueue.add(processList.get(i));
-        }
-
-        System.out.println("[SJF] Average awaiting time = " + findAvgWaitingTime(processQueue, noProcesses));
-    }
-
-    public static void sjfp(List<Process> processList, int noProcesses) {
-        PriorityQueue<Process> processQueue = new PriorityQueue<>();
-        for (int i = 0; i < noProcesses; i++) {
-            processQueue.add(processList.get(i));
-        }
-
-        int time = 0, awaitingUnits = 0;
-        Process currentProcess, headProcess;
-        while (!processQueue.isEmpty()) {
-            currentProcess = processQueue.poll();
-            awaitingUnits += time - currentProcess.getArrivalTime();
-            while (currentProcess.getServiceTime() > 0) {
-                time++;
-                currentProcess.setServiceTime(currentProcess.getServiceTime() - 1);
-                headProcess = processQueue.peek();
-                if(headProcess != null) {
-                    if (headProcess.getArrivalTime() <= time && headProcess.getServiceTime() < currentProcess.getServiceTime()) {
-                        processQueue.add(currentProcess);
-                        break;
-                    }
-                } else
-                    break;
-            }
-        }
-        System.out.println("[SJFP] Average awaiting time = " + (float)(awaitingUnits / noProcesses));
-    }
-
-//    private static void rrob(List<Process> processList, int timeOfSimulation) {
-//        double sum = 0;
-//        Queue<Process> processQueue = new LinkedList<>();
-//        for (int i = 0; i < timeOfSimulation; i++) {
-//            processQueue.add(processList.get(i));
-//        }
-//
-//        int queueSize = processQueue.size(), quantum = 2;
-//
-//        int[] bt = new int[queueSize];
-//        int[] wt = new int[queueSize];
-//        int[] service_time = new int[queueSize];
-//        int[] at = new int[queueSize];
-//
-//
-//        wt[0] = 0;
-//        service_time[0] = 0;
-//
-//        for(int i = 0; i < queueSize; ++i){
-//            bt[i] = processQueue.remove().getserviceTime();
-//        }
-//
-//        int rem_bt[] = new int[queueSize];
-//        for (int i = 0 ; i < queueSize ; i++)
-//            rem_bt[i] =  bt[i];
-//
-//        int t = 0; // Current time
-//
-//        // Keep traversing processes in round robin manner
-//        // until all of them are not done.
-//        while(true)
-//        {
-//            boolean done = true;
-//
-//            // Traverse all processes one by one repeatedly
-//            for (int i = 0 ; i < queueSize; i++)
-//            {
-//                // If burst time of a process is greater than 0
-//                // then only need to process further
-//                if (rem_bt[i] > 0)
-//                {
-//                    done = false; // There is a pending process
-//
-//                    if (rem_bt[i] > quantum)
-//                    {
-//                        // Increase the value of t i.e. shows
-//                        // how much time a process has been processed
-//                        t += quantum;
-//
-//                        // Decrease the burst_time of current process
-//                        // by quantum
-//                        rem_bt[i] -= quantum;
-//                    }
-//
-//                    // If burst time is smaller than or equal to
-//                    // quantum. Last cycle for this process
-//                    else
-//                    {
-//                        // Increase the value of t i.e. shows
-//                        // how much time a process has been processed
-//                        t = t + rem_bt[i];
-//
-//                        // Waiting time is current time minus time
-//                        // used by this process
-//                        wt[i] = t - bt[i];
-//
-//                        // As the process gets fully executed
-//                        // make its remaining burst time = 0
-//                        rem_bt[i] = 0;
-//                    }
-//                }
-//            }
-//
-//            // If all processes are done
-//            if (done)
-//                break;
-//        }
-//
-//        for(int i = 0; i < queueSize; ++i){
-//            sum += wt[i];
-//        }
-//
-//        System.out.println("[RROB] Average awaiting time = " + sum / processList.size());
-//    }
-//
-////    public static void fcfs(List<Process> processList, int timeOfSimulation) {
-////        double sum = 0;
-////        Queue<Process> processQueue = new LinkedList<>();
-////        for (int i = 0; i < timeOfSimulation; i++) {
-////            processQueue.add(processList.get(i));
-////        }
-////
-////        int[] wtime = new int[processQueue.size()];
-////        wtime[0] = 0;
-////
-////        for (int i = 0; i < processQueue.size(); i++) {
-////            wtime[i] = processQueue.remove().getArrivalTime() - i;
-////        }
-////
-////        System.out.println("[FCFS] Average awaiting time = " + sum / processList.size());
-////    }
-//
-//    public static void sjf(List<Process> processList, int timeOfSimulation) {
-//        double sum = 0;
-//        Queue<Process> processQueue = new PriorityQueue<>();
-//
-//        for (int i = 0; i < timeOfSimulation; i++) {
-//            processQueue.add(processList.get(i));
-//        }
-//
-//        int queueSize = processQueue.size();
-//
-//        int[] btime = new int[queueSize];
-//        int[] wtime = new int[queueSize];
-//        int[] service_time = new int[queueSize];
-//        int[] at = new int[queueSize];
-//
-//
-//        wtime[0] = 0;
-//        service_time[0] = 0;
-//
-//        for(int i = 0; i < queueSize; ++i){
-//            btime[i] = processQueue.remove().getserviceTime();
-//        }
-//
-//        for(int i = 1; i < queueSize; ++i){
-//            service_time[i] = service_time[i - 1] + btime[i - 1];
-//            wtime[i] = service_time[i] - at[i];
-//            if(wtime[i] < 0)
-//                wtime[i] = 0;
-//            sum += wtime[i];
-//        }
-//
-//        System.out.println("[SJF] Average awaiting time = " + sum / processList.size());
-//    }
-//
 }
