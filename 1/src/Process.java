@@ -1,24 +1,25 @@
-import java.util.LinkedList;
 import java.util.Objects;
-import java.util.Queue;
-import java.util.Random;
 
 public class Process implements  Comparable<Process>{
 
-    private int startTime;
-    private int processingTime;
+    private int arrivalTime;
+    private int serviceTime;
 
-    public Process(int startTime, int processingTime) {
-        this.startTime = startTime;
-        this.processingTime = processingTime;
+    public Process(int arrivalTime, int processingTime) {
+        this.arrivalTime = arrivalTime;
+        this.serviceTime = processingTime;
     }
 
-    public int getStartTime() {
-        return startTime;
+    public int getArrivalTime() {
+        return arrivalTime;
     }
 
-    public int getProcessingTime() {
-        return processingTime;
+    public int getServiceTime() {
+        return serviceTime;
+    }
+
+    public void setServiceTime(int serviceTime) {
+        this.serviceTime = serviceTime;
     }
 
     @Override
@@ -26,20 +27,20 @@ public class Process implements  Comparable<Process>{
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Process process = (Process) o;
-        return startTime == process.startTime &&
-                processingTime == process.processingTime;
+        return arrivalTime == process.arrivalTime &&
+                serviceTime == process.serviceTime;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(startTime, processingTime);
+        return Objects.hash(arrivalTime, serviceTime);
     }
 
     @Override
     public int compareTo(Process o) {
-        if(this.getProcessingTime() > o.getProcessingTime())
+        if(this.getServiceTime() > o.getServiceTime())
             return 1;
-        if(this.getProcessingTime() < o.getProcessingTime())
+        if(this.getServiceTime() < o.getServiceTime())
             return -1;
         return 0;
     }
